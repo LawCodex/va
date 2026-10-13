@@ -23,7 +23,7 @@ def clean_lines(text):
     for ln in text.replace("\r", "\n").split("\n"):
         ln = ln.replace("\xa0", " ").replace("\t", " ")
         ln = re.sub(r"[ ]{2,}", " ", ln).strip()
-        if TOC_RE.search(ln):
+        if TOC_RE.search(ln) or re.fullmatch(r"\d", ln):
             continue
         lines.append(ln)
     return lines
@@ -81,11 +81,22 @@ def to_markdown(pages):
             cur.clear()
 
     prev = ""
+    pending = None
     for ln in lines:
         if not ln:
-            flush()
-            prev = ""
+            if not pending:
+                flush()
+                prev = ""
             continue
+        if re.fullmatch(r"\d{1,3}\.|[a-z]\)", ln):
+            # comma number alone on its line: attach it to the following text
+            flush()
+            pending = ln
+            continue
+        if pending:
+            ln = pending + " " + ln
+            pending = None
+            flush()
         k = classify(ln)
         if k:
             flush()
